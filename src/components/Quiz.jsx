@@ -16,7 +16,7 @@ export default function Quiz() {
   const [answers, setAnswers] = useState({});
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showResults, setShowResults] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const [totalTime, setTotalTime] = useState(0);
   const timerRef = useRef(null);
 
@@ -33,18 +33,19 @@ export default function Quiz() {
     const isLong = currentQuestion.pregunta.length > 100;
     const timeForQuestion = isLong ? 45 : 30;
 
-    setTotalTime(timeForQuestion);
-    setTimeLeft(timeForQuestion);
+    setTotalTime(timeForQuestion * 1000); // milisegundos
+    setElapsed(0);
     clearInterval(timerRef.current);
 
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev === 1) {
+      setElapsed((prev) => {
+        if (prev + 100 >= timeForQuestion * 1000) {
           handleNext();
+          return 0;
         }
-        return prev - 1;
+        return prev + 100;
       });
-    }, 1000);
+    }, 100);
 
     return () => clearInterval(timerRef.current);
   }, [currentIndex, questions, showResults]);
@@ -63,7 +64,8 @@ export default function Quiz() {
     }
   };
 
-  const progressPercent = ((totalTime - timeLeft) / totalTime) * 100;
+  const progressPercent = (elapsed / totalTime) * 100;
+  const timeLeft = Math.ceil((totalTime - elapsed) / 1000);
 
   if (questions.length === 0)
     return <div className="text-center mt-10 text-lg">Cargando...</div>;
@@ -134,7 +136,6 @@ export default function Quiz() {
     );
   }
 
-  // Render pregunta actual
   const currentQuestion = questions[currentIndex];
 
   return (
@@ -143,7 +144,7 @@ export default function Quiz() {
         Pregunta {currentIndex + 1} de {questions.length}
       </h1>
 
-      <Progress value={progressPercent} className="h-3 rounded-full" />
+      <Progress value={progressPercent} className="h-3 rounded-full transition-all duration-100" />
 
       <Card>
         <CardContent className="p-6 space-y-4">
