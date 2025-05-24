@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 function shuffle(array) {
@@ -13,114 +14,170 @@ function shuffle(array) {
 export default function Quiz() {
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [showResults, setShowResults] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [totalTime, setTotalTime] = useState(0);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     fetch("/Questions.json")
       .then((res) => res.json())
-      .then((data) => {
-        setQuestions(shuffle(data).slice(0, 25));
-      });
+      .then((data) => setQuestions(shuffle(data).slice(0, 25)));
   }, []);
 
-  const handleChange = (qid, value) => {
+  useEffect(() => {
+    if (questions.length === 0 || showResults) return;
+
+    const currentQuestion = questions[currentIndex];
+    const isLong = currentQuestion.pregunta.length > 100;
+    const timeForQuestion = isLong ? 45 : 30;
+
+    setTotalTime(timeForQuestion);
+    setTimeLeft(timeForQuestion);
+    clearInterval(timerRef.current);
+
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev === 1) {
+          handleNext();
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timerRef.current);
+  }, [currentIndex, questions, showResults]);
+
+  const handleAnswer = (qid, value) => {
     setAnswers({ ...answers, [qid]: value });
+    handleNext();
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setShowResults(true);
+  const handleNext = () => {
+    clearInterval(timerRef.current);
+    if (currentIndex + 1 < questions.length) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      setShowResults(true);
+    }
   };
+
+  const progressPercent = ((totalTime - timeLeft) / totalTime) * 100;
 
   if (questions.length === 0)
     return <div className="text-center mt-10 text-lg">Cargando...</div>;
 
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="max-w-3xl mx-auto space-y-6 py-10 px-4 "
-    >
-      <h1 className="text-3xl font-bold text-center mb-6">EXAMEN REGLAS DE JUEGO</h1>
+  if (showResults) {
+    const correct = questions.filter(
+      (q) => answers[q.id] === q.correcta
+    ).length;
 
-      {questions.map((q, idx) => (
-        <Card key={q.id}>
-          <CardContent className="p-6 space-y-4">
-            <div className="text-xl font-semibold border-b pb-2">
-              {idx + 1}. {q.pregunta}
-            </div>
-            <div className="grid gap-3">
+    return (
+      <div className="max-w-3xl mx-auto py-10 px-4 space-y-6">
+        <h1 className="text-3xl font-bold text-center">
+          Has acertado {correct} de {questions.length} preguntas
+        </h1>
+
+        {questions.map((q, idx) => (
+          <Card key={q.id}>
+            <CardContent className="p-6 space-y-3">
+              <div className="text-lg font-semibold">
+                {idx + 1}. {q.pregunta}
+              </div>
+
               {["a", "b", "c", "d"].map((opt) => {
-                const selected = answers[q.id] === opt;
                 const isCorrect = q.correcta === opt;
-                const showFeedback = showResults && selected;
+                const isSelected = answers[q.id] === opt;
 
                 const baseStyle =
                   "w-full text-left px-4 py-3 rounded-lg border transition-colors text-sm font-medium";
 
-                const selectedStyle = !showResults
-                  ? selected
-                    ? "border-blue-500 bg-blue-100 hover:bg-blue-200"
-                    : "border-neutral-300 hover:bg-neutral-100"
-                  : isCorrect
+                const resultStyle = isCorrect
                   ? "border-green-600 bg-green-100 text-green-800"
-                  : selected
+                  : isSelected
                   ? "border-red-500 bg-red-100 text-red-700"
                   : "border-neutral-300 bg-neutral-50";
 
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={opt}
-                    disabled={showResults}
-                    onClick={() => handleChange(q.id, opt)}
-                    className={cn(baseStyle, selectedStyle)}
+                    className={cn(baseStyle, resultStyle, "flex justify-between items-center")}
                   >
-                    {q[`respuesta_${opt}`]}
-                    {showFeedback && (
-                      <span className="ml-2">
-                        {isCorrect ? "✔️" : "❌"}
-                      </span>
-                    )}
-                  </button>
+                    <span>{q[`respuesta_${opt}`]}</span>
+                    {isCorrect && <span>✔️</span>}
+                    {isSelected && !isCorrect && <span>❌</span>}
+                  </div>
                 );
               })}
-            </div>
-            {showResults && (
+
               <div
                 className={cn(
-                  "text-sm pt-2",
+                  "pt-2 text-sm font-medium",
                   answers[q.id] === q.correcta
-                    ? "text-green-600"
-                    : "text-red-600"
+                    ? "text-green-700"
+                    : "text-red-700"
                 )}
               >
                 {answers[q.id] === q.correcta
                   ? "¡Correcto!"
                   : `Incorrecto. Respuesta correcta: ${q.correcta})`}
               </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        ))}
 
-      <div className="text-center pt-6">
-        {!showResults ? (
-          <Button
-            type="submit"
-            className="text-lg px-8 py-4 rounded-xl shadow-md"
-          >
-            📝 Corregir examen
-          </Button>
-        ) : (
-          <div className="text-xl font-semibold">
-            Has acertado{" "}
-            {
-              questions.filter((q) => answers[q.id] === q.correcta).length
-            }{" "}
-            de {questions.length} preguntas.
-          </div>
-        )}
+        <div className="text-center pt-6">
+          <Button onClick={() => window.location.reload()}>Reintentar</Button>
+        </div>
       </div>
-    </form>
+    );
+  }
+
+  // Render pregunta actual
+  const currentQuestion = questions[currentIndex];
+
+  return (
+    <div className="max-w-2xl mx-auto py-10 px-4 space-y-6">
+      <h1 className="text-3xl font-bold text-center">
+        Pregunta {currentIndex + 1} de {questions.length}
+      </h1>
+
+      <Progress value={progressPercent} className="h-3 rounded-full" />
+
+      <Card>
+        <CardContent className="p-6 space-y-4">
+          <div className="text-xl font-semibold border-b pb-2">
+            {currentQuestion.pregunta}
+          </div>
+          <div className="grid gap-3">
+            {["a", "b", "c", "d"].map((opt) => {
+              const selected = answers[currentQuestion.id] === opt;
+
+              const baseStyle =
+                "w-full text-left px-4 py-3 rounded-lg border transition-colors text-sm font-medium";
+
+              const selectedStyle = selected
+                ? "border-blue-500 bg-blue-100 hover:bg-blue-200"
+                : "border-neutral-300 hover:bg-neutral-100";
+
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => handleAnswer(currentQuestion.id, opt)}
+                  className={cn(baseStyle, selectedStyle)}
+                >
+                  {currentQuestion[`respuesta_${opt}`]}
+                </button>
+              );
+            })}
+          </div>
+          <div className="text-sm text-gray-500 pt-2">
+            Tiempo restante: {timeLeft}s
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
