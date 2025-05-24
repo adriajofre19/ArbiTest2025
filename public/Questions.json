@@ -9978,5 +9978,15 @@
         "respuesta_c": "c) Convocará a los dos capitanes y aceptará su decisión sobre proseguir o finalizar el partido.",
         "respuesta_d": "d) Ordenará retirar los otros tres banderines para que no haya ventaja.",
         "correcta": "a"
+    },
+    {
+        "regla":"Regla 12",
+        "id": 999,
+        "pregunta": "El árbitro concede un balón a tierra fuera del área, y habiéndose efectuado según el procedimiento, el balón es jugado por el guardameta, el cual lo conduce hacía el interior de su propia área de penal y lo coge con ambas manos. Qué decisión deberá adoptar el árbitro?",
+        "respuesta_a": "a) Hará reanudar el juego con un tiro libre indirecto.",
+        "respuesta_b": "b) Dejará continuar el juego.",
+        "respuesta_c": "c) Amonestará al guardameta y hará reanudar el juego con un tiro libre indirecto.",
+        "respuesta_d": "d) Amonestará al guardameta y repetirá el balón a tierra.",
+        "correcta": "b"
     }
 ]
